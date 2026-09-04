@@ -493,6 +493,22 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Modal de cancelamento com motivo (admin) -->
+<div class="modal-overlay" id="cancelReasonOverlay">
+  <div class="modal-card">
+    <h3>Cancelar agendamento</h3>
+    <p class="desc" id="cancelReasonDesc">O cliente recebe um aviso no WhatsApp explicando o cancelamento.</p>
+    <div class="field">
+      <label class="simple" for="cancelMotivo">Motivo do cancelamento (aparece para o cliente)</label>
+      <textarea id="cancelMotivo" placeholder="Ex: profissional responsável está de folga nesse horário"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="cancelReasonCloseBtn">Voltar</button>
+      <button type="button" class="btn-primary" id="cancelReasonConfirmBtn" style="background:var(--coral-600); border-color:var(--coral-600);">Confirmar cancelamento</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal de edição (admin) -->
 <div class="modal-overlay" id="editOverlay">
   <div class="modal-card">
@@ -531,6 +547,10 @@
     <div class="field">
       <label class="simple" for="editObs">Observações</label>
       <textarea id="editObs"></textarea>
+    </div>
+    <div class="field">
+      <label class="simple" for="editMotivo">Motivo da alteração (aparece para o cliente)</label>
+      <textarea id="editMotivo" placeholder="Ex: reagendado a pedido do tutor / conflito de horário"></textarea>
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-ghost" id="editCloseBtn">Cancelar</button>
@@ -886,24 +906,26 @@
     return d;
   }
 
-  function buildClientMessage(ag, tipo){
+  function buildClientMessage(ag, tipo, motivo){
     var linhas = [];
     if(tipo === 'cancelado'){
       linhas.push('Olá, ' + ag.tutorNome + '! Passando para avisar que o agendamento de ' + ag.petNome +
         ' (' + ag.porteNome + '), marcado para ' + formatDate(ag.data) + ' às ' + ag.hora +
         ', foi cancelado pela Colleen Feliz.');
+      if(motivo){ linhas.push('Motivo: ' + motivo); }
     }else{
       linhas.push('Olá, ' + ag.tutorNome + '! Seu agendamento de ' + ag.petNome + ' foi atualizado pela Colleen Feliz:');
       linhas.push('Nova data: ' + formatDate(ag.data) + ' às ' + ag.hora);
       if(ag.busca){ linhas.push('Busca em casa: ' + ag.endereco + ' às ' + ag.horaBusca); }
       else{ linhas.push('Sem busca em casa — a entrega continua sendo no salão.'); }
+      if(motivo){ linhas.push('Motivo da alteração: ' + motivo); }
     }
     linhas.push('Qualquer dúvida, é só responder por aqui.');
     return linhas.join('\n');
   }
 
-  function sendWhatsAppToClient(ag, preOpenedWindow, tipo){
-    var msg = buildClientMessage(ag, tipo);
+  function sendWhatsAppToClient(ag, preOpenedWindow, tipo, motivo){
+    var msg = buildClientMessage(ag, tipo, motivo);
     var url = 'https://wa.me/' + formatPhoneForWa(ag.tutorTel) + '?text=' + encodeURIComponent(msg);
     if(preOpenedWindow && !preOpenedWindow.closed){
       preOpenedWindow.location.href = url;
@@ -1067,6 +1089,7 @@
           '<div class="pet-name">'+escapeHtml(ag.petNome)+' &middot; '+ag.porteNome+
             ' <span class="status-chip '+ag.status+'">'+statusLabel+'</span></div>' +
           '<div class="tutor">'+escapeHtml(ag.tutorNome)+' &middot; '+escapeHtml(ag.tutorTel)+'</div>' +
+          '<div class="tutor">Protocolo: <strong>'+ag.cancelCode+'</strong></div>' +
           '<div class="appt-chips">'+chips+'</div>' +
           (ag.obs ? '<div class="tutor" style="margin-top:6px;">Obs: '+escapeHtml(ag.obs)+'</div>' : '') +
           (ag.busca ? '<div class="tutor">Endereço: '+escapeHtml(ag.endereco)+' às '+ag.horaBusca+'</div>' : '') +
@@ -1083,26 +1106,9 @@
     adminResults.innerHTML = html;
 
     adminResults.querySelectorAll('[data-action="cancel"]').forEach(function(btn){
-      btn.addEventListener('click', async function(){
+      btn.addEventListener('click', function(){
         var ag = list.filter(function(a){ return a.id === btn.dataset.id; })[0];
-        if(!ag) return;
-        if(!confirm('Cancelar o agendamento de ' + ag.petNome + ' e avisar ' + ag.tutorNome + ' no WhatsApp?')) return;
-        btn.disabled = true;
-        btn.textContent = 'Cancelando…';
-        var waWindow = window.open('', '_blank');
-        try{
-          await cancelAppointment(ag.id);
-          ag.status = 'cancelado';
-          sendWhatsAppToClient(ag, waWindow, 'cancelado');
-          showToast('Agendamento cancelado e cliente avisado.');
-          refreshAdminList();
-        }catch(err){
-          if(waWindow && !waWindow.closed){ waWindow.close(); }
-          adminError.textContent = 'Não foi possível cancelar agora.';
-          adminError.classList.add('show');
-          btn.disabled = false;
-          btn.textContent = 'Cancelar e avisar cliente';
-        }
+        if(ag) openCancelReasonModal(ag);
       });
     });
 
@@ -1177,6 +1183,51 @@
     });
   });
 
+  // ---------- Modal de cancelamento com motivo (admin) ----------
+  var cancelReasonOverlay = document.getElementById('cancelReasonOverlay');
+  var cancelReasonDesc = document.getElementById('cancelReasonDesc');
+  var cancelMotivo = document.getElementById('cancelMotivo');
+  var cancelReasonConfirmBtn = document.getElementById('cancelReasonConfirmBtn');
+  var pendingCancelAg = null;
+
+  function openCancelReasonModal(ag){
+    pendingCancelAg = ag;
+    cancelMotivo.value = '';
+    cancelReasonDesc.textContent = 'Cancelando o agendamento de ' + ag.petNome + ' (' + ag.tutorNome + '). O cliente recebe um aviso no WhatsApp explicando o motivo.';
+    cancelReasonOverlay.classList.add('show');
+  }
+  function closeCancelReasonModal(){
+    cancelReasonOverlay.classList.remove('show');
+    pendingCancelAg = null;
+  }
+  document.getElementById('cancelReasonCloseBtn').addEventListener('click', closeCancelReasonModal);
+  cancelReasonOverlay.addEventListener('click', function(e){ if(e.target === cancelReasonOverlay) closeCancelReasonModal(); });
+
+  cancelReasonConfirmBtn.addEventListener('click', async function(){
+    if(!pendingCancelAg) return;
+    var ag = pendingCancelAg;
+    var motivo = cancelMotivo.value.trim();
+    cancelReasonConfirmBtn.disabled = true;
+    cancelReasonConfirmBtn.textContent = 'Cancelando…';
+    var waWindow = window.open('', '_blank');
+    try{
+      await cancelAppointment(ag.id);
+      ag.status = 'cancelado';
+      sendWhatsAppToClient(ag, waWindow, 'cancelado', motivo);
+      showToast('Agendamento cancelado e cliente avisado.');
+      closeCancelReasonModal();
+      refreshAdminList();
+    }catch(err){
+      if(waWindow && !waWindow.closed){ waWindow.close(); }
+      cancelReasonOverlay.classList.remove('show');
+      adminError.textContent = 'Não foi possível cancelar agora.';
+      adminError.classList.add('show');
+    }finally{
+      cancelReasonConfirmBtn.disabled = false;
+      cancelReasonConfirmBtn.textContent = 'Confirmar cancelamento';
+    }
+  });
+
   // ---------- Modal de edição (admin) ----------
   var editOverlay = document.getElementById('editOverlay');
   var editError = document.getElementById('editError');
@@ -1187,6 +1238,7 @@
   var editEndereco = document.getElementById('editEndereco');
   var editHoraBusca = document.getElementById('editHoraBusca');
   var editObs = document.getElementById('editObs');
+  var editMotivo = document.getElementById('editMotivo');
   var editSaveBtn = document.getElementById('editSaveBtn');
   var pendingEditAg = null;
 
@@ -1200,6 +1252,7 @@
     editEndereco.value = ag.endereco || '';
     editHoraBusca.value = ag.horaBusca || '';
     editObs.value = ag.obs || '';
+    editMotivo.value = '';
     editOverlay.classList.add('show');
   }
   function closeEditModal(){
@@ -1242,7 +1295,7 @@
         obs: editObs.value.trim() || null
       };
       var updated = await updateAppointment(pendingEditAg.id, changes);
-      sendWhatsAppToClient(updated, waWindow, 'alterado');
+      sendWhatsAppToClient(updated, waWindow, 'alterado', editMotivo.value.trim());
       showToast('Agendamento atualizado e cliente avisado.');
       closeEditModal();
       refreshAdminList();
