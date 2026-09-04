@@ -87,6 +87,38 @@
   .status-chip.confirmado{background:var(--green-100); color:var(--green-600);}
   .status-chip.cancelado{background:var(--coral-100); color:var(--coral-700);}
 
+  .admin-actions{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; justify-content:flex-end;}
+  .admin-actions .edit-btn{
+    margin-top:0; background:none; border:1.5px solid var(--teal-700); color:var(--teal-700);
+    font-size:12.5px; padding:6px 12px; border-radius:999px; cursor:pointer;
+  }
+  .admin-actions .edit-btn:hover{background:var(--teal-050);}
+
+  .modal-overlay{
+    position:fixed; inset:0; background:rgba(18,48,47,.45); display:none;
+    align-items:center; justify-content:center; padding:20px; z-index:60;
+  }
+  .modal-overlay.show{display:flex;}
+  .modal-card{
+    background:var(--white); border-radius:var(--radius-l); padding:24px; max-width:420px; width:100%;
+    max-height:90vh; overflow-y:auto; box-shadow:0 20px 50px rgba(0,0,0,.25);
+  }
+  .modal-card h3{font-size:17px; margin:0 0 6px;}
+  .modal-card p.desc{font-size:13.5px; color:var(--ink-soft); margin:0 0 16px;}
+  .modal-error{
+    display:none; font-size:13px; color:var(--coral-700); background:var(--coral-100);
+    border:1.5px solid var(--coral-600); border-radius:var(--radius-s); padding:8px 11px; margin-bottom:14px; font-weight:600;
+  }
+  .modal-error.show{display:block;}
+  .modal-actions{display:flex; gap:10px; margin-top:4px;}
+  .modal-actions button{
+    flex:1; border-radius:var(--radius-s); padding:11px; font-size:14px; font-weight:700; cursor:pointer;
+    font-family:'Fredoka', sans-serif;
+  }
+  .modal-actions .btn-ghost{background:var(--white); border:1.5px solid var(--line); color:var(--ink-soft);}
+  .modal-actions .btn-primary{background:var(--teal-700); border:1.5px solid var(--teal-700); color:var(--white);}
+  .modal-actions .btn-primary:hover{background:var(--teal-600);}
+
   /* Layout */
   main{padding:0 0 64px;}
   .grid{display:grid; grid-template-columns: 1fr; gap:20px; align-items:start;}
@@ -461,6 +493,52 @@
 
 <div class="toast" id="toast"></div>
 
+<!-- Modal de edição (admin) -->
+<div class="modal-overlay" id="editOverlay">
+  <div class="modal-card">
+    <h3>Alterar agendamento</h3>
+    <p class="desc">O cliente recebe um aviso no WhatsApp assim que você salvar.</p>
+    <div class="modal-error" id="editError"></div>
+    <div class="two-col">
+      <div class="field">
+        <label class="simple" for="editData">Data</label>
+        <input type="date" id="editData">
+      </div>
+      <div class="field">
+        <label class="simple" for="editHora">Horário</label>
+        <input type="time" id="editHora">
+      </div>
+    </div>
+    <div class="toggle-row">
+      <div class="label-txt">
+        <strong>Buscar o pet em casa</strong>
+      </div>
+      <div class="switch">
+        <input type="checkbox" id="editBusca">
+        <label for="editBusca" class="track"><span class="thumb"></span></label>
+      </div>
+    </div>
+    <div class="pickup-fields" id="editPickupFields">
+      <div class="field">
+        <label class="simple" for="editEndereco">Endereço para busca</label>
+        <input type="text" id="editEndereco" placeholder="Rua, número, bairro">
+      </div>
+      <div class="field">
+        <label class="simple" for="editHoraBusca">Horário da busca</label>
+        <input type="time" id="editHoraBusca">
+      </div>
+    </div>
+    <div class="field">
+      <label class="simple" for="editObs">Observações</label>
+      <textarea id="editObs"></textarea>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-ghost" id="editCloseBtn">Cancelar</button>
+      <button type="button" class="btn-primary" id="editSaveBtn">Salvar e avisar cliente</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function(){
   "use strict";
@@ -717,6 +795,18 @@
     if(!res.ok){ throw new Error('Falha ao cancelar no Supabase'); }
   }
 
+  async function updateAppointment(id, changes){
+    var url = TABLE_URL + '?id=eq.' + encodeURIComponent(id);
+    var res = await fetch(url, {
+      method: 'PATCH',
+      headers: Object.assign({}, SUPABASE_HEADERS, {'Prefer':'return=representation'}),
+      body: JSON.stringify(changes)
+    });
+    if(!res.ok){ throw new Error('Falha ao atualizar no Supabase'); }
+    var saved = await res.json();
+    return mapRowToAppointment(saved[0]);
+  }
+
   function renderLookupResults(list){
     if(list.length === 0){
       lookupResults.innerHTML = '<div class="empty-state">Nenhum agendamento encontrado com esse WhatsApp e código.</div>';
@@ -789,6 +879,38 @@
       lookupBtn.textContent = 'Buscar agendamento';
     }
   });
+
+  function formatPhoneForWa(tel){
+    var d = onlyDigits(tel);
+    if(d.length <= 11){ d = '55' + d; } // assume DDD sem código do país -> Brasil
+    return d;
+  }
+
+  function buildClientMessage(ag, tipo){
+    var linhas = [];
+    if(tipo === 'cancelado'){
+      linhas.push('Olá, ' + ag.tutorNome + '! Passando para avisar que o agendamento de ' + ag.petNome +
+        ' (' + ag.porteNome + '), marcado para ' + formatDate(ag.data) + ' às ' + ag.hora +
+        ', foi cancelado pela Colleen Feliz.');
+    }else{
+      linhas.push('Olá, ' + ag.tutorNome + '! Seu agendamento de ' + ag.petNome + ' foi atualizado pela Colleen Feliz:');
+      linhas.push('Nova data: ' + formatDate(ag.data) + ' às ' + ag.hora);
+      if(ag.busca){ linhas.push('Busca em casa: ' + ag.endereco + ' às ' + ag.horaBusca); }
+      else{ linhas.push('Sem busca em casa — a entrega continua sendo no salão.'); }
+    }
+    linhas.push('Qualquer dúvida, é só responder por aqui.');
+    return linhas.join('\n');
+  }
+
+  function sendWhatsAppToClient(ag, preOpenedWindow, tipo){
+    var msg = buildClientMessage(ag, tipo);
+    var url = 'https://wa.me/' + formatPhoneForWa(ag.tutorTel) + '?text=' + encodeURIComponent(msg);
+    if(preOpenedWindow && !preOpenedWindow.closed){
+      preOpenedWindow.location.href = url;
+    }else{
+      window.open(url, '_blank');
+    }
+  }
 
   // ---------- WhatsApp auto notification ----------
   function buildWhatsAppMessage(ag, titulo){
@@ -933,7 +1055,14 @@
       var chips = ag.servicosNomes.map(function(n){ return '<span class="chip">'+n+'</span>'; }).join('');
       if(ag.busca) chips += '<span class="chip busca">Busca em casa</span>';
       var statusLabel = ag.status === 'cancelado' ? 'Cancelado' : 'Confirmado';
-      html += '<div class="appt-card" style="margin-bottom:12px;">' +
+      var acoes = ag.status === 'confirmado'
+        ? '<div class="admin-actions">' +
+            '<button type="button" class="edit-btn" data-action="edit" data-id="'+ag.id+'">Editar</button>' +
+            '<button type="button" class="cancel-btn" data-action="cancel" data-id="'+ag.id+'">Cancelar e avisar cliente</button>' +
+          '</div>'
+        : '';
+      html += '<div class="appt-card" style="margin-bottom:12px; flex-direction:column; align-items:stretch;">' +
+        '<div style="display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; align-items:flex-start;">' +
         '<div class="appt-main">' +
           '<div class="pet-name">'+escapeHtml(ag.petNome)+' &middot; '+ag.porteNome+
             ' <span class="status-chip '+ag.status+'">'+statusLabel+'</span></div>' +
@@ -947,9 +1076,42 @@
           '<div class="when">'+formatDate(ag.data)+' às '+ag.hora+'</div>' +
           '<div class="price">'+money(ag.total)+'</div>' +
         '</div>' +
+        '</div>' +
+        acoes +
       '</div>';
     });
     adminResults.innerHTML = html;
+
+    adminResults.querySelectorAll('[data-action="cancel"]').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        var ag = list.filter(function(a){ return a.id === btn.dataset.id; })[0];
+        if(!ag) return;
+        if(!confirm('Cancelar o agendamento de ' + ag.petNome + ' e avisar ' + ag.tutorNome + ' no WhatsApp?')) return;
+        btn.disabled = true;
+        btn.textContent = 'Cancelando…';
+        var waWindow = window.open('', '_blank');
+        try{
+          await cancelAppointment(ag.id);
+          ag.status = 'cancelado';
+          sendWhatsAppToClient(ag, waWindow, 'cancelado');
+          showToast('Agendamento cancelado e cliente avisado.');
+          refreshAdminList();
+        }catch(err){
+          if(waWindow && !waWindow.closed){ waWindow.close(); }
+          adminError.textContent = 'Não foi possível cancelar agora.';
+          adminError.classList.add('show');
+          btn.disabled = false;
+          btn.textContent = 'Cancelar e avisar cliente';
+        }
+      });
+    });
+
+    adminResults.querySelectorAll('[data-action="edit"]').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var ag = list.filter(function(a){ return a.id === btn.dataset.id; })[0];
+        if(ag) openEditModal(ag);
+      });
+    });
   }
 
   async function refreshAdminList(){
@@ -1013,6 +1175,85 @@
       adminCurrentFilter = btn.dataset.status;
       refreshAdminList();
     });
+  });
+
+  // ---------- Modal de edição (admin) ----------
+  var editOverlay = document.getElementById('editOverlay');
+  var editError = document.getElementById('editError');
+  var editData = document.getElementById('editData');
+  var editHora = document.getElementById('editHora');
+  var editBusca = document.getElementById('editBusca');
+  var editPickupFields = document.getElementById('editPickupFields');
+  var editEndereco = document.getElementById('editEndereco');
+  var editHoraBusca = document.getElementById('editHoraBusca');
+  var editObs = document.getElementById('editObs');
+  var editSaveBtn = document.getElementById('editSaveBtn');
+  var pendingEditAg = null;
+
+  function openEditModal(ag){
+    pendingEditAg = ag;
+    editError.classList.remove('show');
+    editData.value = ag.data;
+    editHora.value = ag.hora;
+    editBusca.checked = !!ag.busca;
+    editPickupFields.classList.toggle('open', !!ag.busca);
+    editEndereco.value = ag.endereco || '';
+    editHoraBusca.value = ag.horaBusca || '';
+    editObs.value = ag.obs || '';
+    editOverlay.classList.add('show');
+  }
+  function closeEditModal(){
+    editOverlay.classList.remove('show');
+    pendingEditAg = null;
+  }
+  document.getElementById('editCloseBtn').addEventListener('click', closeEditModal);
+  editOverlay.addEventListener('click', function(e){ if(e.target === editOverlay) closeEditModal(); });
+  editBusca.addEventListener('change', function(){
+    editPickupFields.classList.toggle('open', editBusca.checked);
+  });
+
+  editSaveBtn.addEventListener('click', async function(){
+    if(!pendingEditAg) return;
+    var novaData = editData.value;
+    var novaHora = editHora.value;
+    var novaBusca = editBusca.checked;
+    var novoEndereco = editEndereco.value.trim();
+    var novaHoraBusca = editHoraBusca.value;
+
+    if(!novaData || !novaHora){
+      editError.textContent = 'Escolha a data e o horário.';
+      editError.classList.add('show');
+      return;
+    }
+    if(novaBusca && (!novoEndereco || !novaHoraBusca)){
+      editError.textContent = 'Preencha o endereço e o horário de busca, ou desative a busca em casa.';
+      editError.classList.add('show');
+      return;
+    }
+    editError.classList.remove('show');
+    editSaveBtn.disabled = true;
+    editSaveBtn.textContent = 'Salvando…';
+    var waWindow = window.open('', '_blank');
+    try{
+      var changes = {
+        data: novaData, hora: novaHora, busca: novaBusca,
+        endereco: novaBusca ? novoEndereco : null,
+        hora_busca: novaBusca ? novaHoraBusca : null,
+        obs: editObs.value.trim() || null
+      };
+      var updated = await updateAppointment(pendingEditAg.id, changes);
+      sendWhatsAppToClient(updated, waWindow, 'alterado');
+      showToast('Agendamento atualizado e cliente avisado.');
+      closeEditModal();
+      refreshAdminList();
+    }catch(err){
+      if(waWindow && !waWindow.closed){ waWindow.close(); }
+      editError.textContent = 'Não foi possível salvar agora. Tente de novo.';
+      editError.classList.add('show');
+    }finally{
+      editSaveBtn.disabled = false;
+      editSaveBtn.textContent = 'Salvar e avisar cliente';
+    }
   });
 
   // ---------- Init ----------
