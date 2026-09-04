@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Colleen Feliz — Agendamento</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Work+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --teal-900:#12302f;
+    --teal-700:#1f4b4a;
+    --teal-600:#2b615f;
+    --teal-050:#eef4f1;
+    --coral-600:#e8543e;
+    --coral-700:#c8402c;
+    --coral-100:#fbe1db;
+    --sand-500:#d9a15b;
+    --sand-100:#f7e9d4;
+    --green-600:#2f8f5b;
+    --green-100:#e2f4ea;
+    --ink:#1b2421;
+    --ink-soft:#5a6a65;
+    --white:#ffffff;
+    --line:#dbe4df;
+    --radius-s:10px;
+    --radius-m:16px;
+    --radius-l:24px;
+    --shadow: 0 1px 2px rgba(18,48,47,.06), 0 8px 24px rgba(18,48,47,.08);
+  }
+
+  *{box-sizing:border-box;}
+  html{-webkit-text-size-adjust:100%;}
+  body{
+    margin:0;
+    background:var(--teal-050);
+    color:var(--ink);
+    font-family:'Work Sans', sans-serif;
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.brand{font-family:'Fredoka', sans-serif; font-weight:600; color:var(--teal-900);}
+
+  a{color:inherit;}
+  button{font-family:inherit;}
+  :focus-visible{outline:3px solid var(--sand-500); outline-offset:2px;}
+
+  .wrap{max-width:1080px; margin:0 auto; padding:0 20px;}
+
+  /* Header */
+  header.site{background:var(--teal-700); color:var(--white);}
+  .site-inner{
+    max-width:1080px; margin:0 auto; padding:18px 20px;
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+  }
+  .brand{color:var(--white); font-size:22px; display:flex; align-items:center; gap:10px; letter-spacing:.2px;}
+  .brand svg{width:30px; height:30px; flex:none;}
+  .site-tag{font-size:13px; color:var(--teal-050); opacity:.85; display:none;}
+  @media (min-width:640px){ .site-tag{display:block;} }
+
+  /* Hero */
+  .hero{padding:40px 0 8px;}
+  .hero h1{font-size:clamp(26px,4vw,38px); margin:0 0 10px; line-height:1.15;}
+  .hero p{margin:0; max-width:56ch; color:var(--ink-soft); font-size:16px;}
+
+  /* Tabs */
+  .tabs-nav{display:flex; gap:8px; margin:28px 0 20px; flex-wrap:wrap;}
+  .tab-btn{
+    background:var(--white); border:1.5px solid var(--line); padding:10px 20px; border-radius:999px;
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:14px; color:var(--ink-soft); cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .tab-btn.active{background:var(--teal-700); border-color:var(--teal-700); color:var(--white);}
+  .tab-btn:hover:not(.active){border-color:var(--teal-600);}
+  .tab-panel{display:none;}
+  .tab-panel.active{display:block;}
+
+  /* Layout */
+  main{padding:0 0 64px;}
+  .grid{display:grid; grid-template-columns: 1fr; gap:20px; align-items:start;}
+  @media (min-width:860px){ .grid{grid-template-columns: 1.5fr 1fr;} }
+
+  .card{
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius-l);
+    padding:24px; box-shadow:var(--shadow);
+  }
+  .card h2{font-size:20px; margin:0 0 4px;}
+  .card .hint{color:var(--ink-soft); font-size:13.5px; margin:0 0 18px;}
+
+  fieldset{border:0; margin:0 0 24px; padding:0;}
+  legend{
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:15px;
+    color:var(--teal-900); margin-bottom:10px; padding:0;
+  }
+
+  .field{margin-bottom:16px;}
+  .field label.simple{display:block; font-size:13.5px; font-weight:600; color:var(--teal-900); margin-bottom:6px;}
+  .two-col{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  @media (max-width:420px){ .two-col{grid-template-columns:1fr;} }
+
+  input[type=text], input[type=tel], input[type=date], input[type=time], textarea{
+    width:100%; border:1.5px solid var(--line); border-radius:var(--radius-s);
+    padding:11px 13px; font-size:15px; font-family:inherit; color:var(--ink);
+    background:var(--white); transition:border-color .15s ease;
+  }
+  input:hover, textarea:hover{border-color:var(--teal-600);}
+  input:focus, textarea:focus{border-color:var(--teal-700); outline:none;}
+  textarea{resize:vertical; min-height:70px;}
+
+  /* Porte (size) radio cards */
+  .porte-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:10px;}
+  @media (min-width:520px){ .porte-grid{grid-template-columns:repeat(4,1fr);} }
+  .porte-grid input{position:absolute; opacity:0; width:0; height:0;}
+  .porte-card{
+    display:block; cursor:pointer; border:1.5px solid var(--line); border-radius:var(--radius-m);
+    padding:12px 10px; text-align:center; position:relative;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .porte-card strong{display:block; font-size:14.5px; color:var(--teal-900);}
+  .porte-card span{display:block; font-size:12px; color:var(--ink-soft); margin-top:2px;}
+  .porte-grid input:checked + .porte-card{border-color:var(--teal-700); background:var(--teal-050);}
+  .porte-grid input:focus-visible + .porte-card{outline:3px solid var(--sand-500); outline-offset:2px;}
+
+  /* Service checkboxes */
+  .service-list{display:flex; flex-direction:column; gap:10px;}
+  .service-row{
+    display:flex; align-items:flex-start; gap:12px; border:1.5px solid var(--line); border-radius:var(--radius-m);
+    padding:12px 14px; cursor:pointer; transition:border-color .15s ease, background .15s ease;
+  }
+  .service-row:has(input:checked){border-color:var(--coral-600); background:var(--coral-100);}
+  .service-row input{margin-top:3px; accent-color:var(--coral-600); width:18px; height:18px; flex:none;}
+  .service-icon{
+    flex:none; width:34px; height:34px; border-radius:50%; background:var(--teal-050);
+    display:flex; align-items:center; justify-content:center; color:var(--teal-700);
+  }
+  .service-icon svg{width:18px; height:18px;}
+  .service-main{flex:1; min-width:0;}
+  .service-main .row-top{display:flex; justify-content:space-between; gap:8px; align-items:baseline;}
+  .service-main strong{font-size:14.5px; color:var(--teal-900);}
+  .service-main .desc{font-size:12.5px; color:var(--ink-soft); margin-top:2px;}
+  .service-price{font-weight:700; color:var(--teal-700); font-size:14.5px; white-space:nowrap;}
+  .service-price.muted{color:var(--ink-soft); font-weight:500; font-size:12.5px;}
+
+  /* Toggle switch */
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px;}
+  .toggle-row .label-txt strong{display:block; font-size:14.5px; color:var(--teal-900);}
+  .toggle-row .label-txt span{font-size:12.5px; color:var(--ink-soft);}
+  .switch{position:relative; width:46px; height:27px; flex:none;}
+  .switch input{position:absolute; opacity:0; width:100%; height:100%; margin:0; cursor:pointer;}
+  .switch .track{position:absolute; inset:0; background:var(--line); border-radius:20px; transition:background .15s ease;}
+  .switch .thumb{
+    position:absolute; top:3px; left:3px; width:21px; height:21px; border-radius:50%;
+    background:var(--white); box-shadow:0 1px 3px rgba(0,0,0,.25); transition:transform .15s ease;
+  }
+  .switch input:checked + .track{background:var(--teal-700);}
+  .switch input:checked + .track .thumb{transform:translateX(19px);}
+  .switch input:focus-visible + .track{outline:3px solid var(--sand-500); outline-offset:2px;}
+
+  .pickup-fields{
+    display:grid; gap:12px; margin-top:4px;
+    max-height:0; overflow:hidden; opacity:0; transition:max-height .2s ease, opacity .2s ease;
+  }
+  .pickup-fields.open{max-height:220px; opacity:1;}
+
+  .error-box{
+    display:none; background:var(--coral-100); border:1.5px solid var(--coral-600);
+    color:var(--coral-700); border-radius:var(--radius-s); padding:10px 13px; font-size:13.5px;
+    margin-bottom:16px; font-weight:600;
+  }
+  .error-box.show{display:block;}
+
+  .success-banner{
+    display:none; background:var(--green-100); border:1.5px solid var(--green-600);
+    color:#1d5c3c; border-radius:var(--radius-m); padding:14px 16px; margin-bottom:18px;
+    font-size:13.5px;
+  }
+  .success-banner.show{display:block;}
+  .success-banner strong{display:block; font-size:14.5px; margin-bottom:4px; color:#1d5c3c;}
+  .success-banner .code-row{display:flex; align-items:center; gap:10px; margin-top:8px; flex-wrap:wrap;}
+  .success-banner .code{
+    font-family:'Fredoka', sans-serif; font-size:20px; letter-spacing:2px; background:var(--white);
+    border:1.5px dashed var(--green-600); border-radius:var(--radius-s); padding:4px 12px; color:#1d5c3c;
+  }
+  .success-banner .copy-btn, .success-banner .close-btn{
+    background:none; border:1.5px solid var(--green-600); color:#1d5c3c; border-radius:999px;
+    padding:5px 12px; font-size:12.5px; cursor:pointer; font-weight:600;
+  }
+  .success-banner .close-btn{border-color:transparent; text-decoration:underline; padding:5px 4px;}
+  .success-banner .wa-note{margin-top:8px; font-size:12.5px; color:#1d5c3c; opacity:.85;}
+
+  .submit-btn{
+    width:100%; background:var(--coral-600); color:var(--white); border:0;
+    border-radius:var(--radius-s); padding:14px 18px; font-size:15.5px; font-weight:700;
+    font-family:'Fredoka', sans-serif; cursor:pointer; transition:background .15s ease, transform .1s ease;
+  }
+  .submit-btn:hover{background:var(--coral-700);}
+  .submit-btn:active{transform:translateY(1px);}
+
+  /* Summary card */
+  .summary{position:static; top:20px;}
+  @media (min-width:860px){ .summary{position:sticky;} }
+  .summary .porte-tag{
+    display:inline-block; background:var(--sand-100); color:#7a4f14;
+    font-size:12.5px; font-weight:700; padding:3px 10px; border-radius:999px; margin-bottom:14px;
+  }
+  .summary ul{list-style:none; margin:0 0 14px; padding:0;}
+  .summary li{display:flex; justify-content:space-between; gap:8px; font-size:14px; padding:8px 0; border-bottom:1px dashed var(--line);}
+  .summary li span:first-child{color:var(--ink-soft);}
+  .summary .total-row{
+    display:flex; justify-content:space-between; align-items:baseline;
+    padding-top:12px; margin-top:4px; border-top:2px solid var(--teal-900);
+  }
+  .summary .total-row strong{font-family:'Fredoka', sans-serif; font-size:15px; color:var(--teal-900);}
+  .summary .total-row .amount{font-size:24px; font-weight:700; color:var(--teal-700); font-family:'Fredoka', sans-serif;}
+  .summary .empty-note{color:var(--ink-soft); font-size:13.5px;}
+
+  /* Lookup tab */
+  .lookup-card{max-width:480px; margin:0 auto 24px;}
+  .lookup-card .lookup-btn{
+    width:100%; background:var(--teal-700); color:var(--white); border:0; border-radius:var(--radius-s);
+    padding:13px 18px; font-size:15px; font-weight:700; font-family:'Fredoka', sans-serif; cursor:pointer;
+    transition:background .15s ease;
+  }
+  .lookup-card .lookup-btn:hover{background:var(--teal-600);}
+  .lookup-note{font-size:12.5px; color:var(--ink-soft); text-align:center; margin:0 0 20px;}
+  #lookupResults{max-width:640px; margin:0 auto;}
+
+  /* Appointment card (used in lookup results) */
+  .appt-card{
+    background:var(--white); border:1px solid var(--line); border-radius:var(--radius-m);
+    padding:16px 18px; box-shadow:var(--shadow);
+    display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; align-items:flex-start;
+  }
+  .appt-main{flex:1; min-width:220px;}
+  .appt-main .pet-name{font-family:'Fredoka', sans-serif; font-size:16.5px; color:var(--teal-900);}
+  .appt-main .tutor{font-size:13px; color:var(--ink-soft); margin-top:1px;}
+  .appt-chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;}
+  .chip{font-size:12px; background:var(--teal-050); color:var(--teal-700); padding:3px 9px; border-radius:999px; font-weight:600;}
+  .chip.busca{background:var(--sand-100); color:#7a4f14;}
+  .appt-meta{text-align:right; flex:none;}
+  .appt-meta .when{font-weight:700; color:var(--teal-900); font-size:14px;}
+  .appt-meta .price{font-family:'Fredoka', sans-serif; font-size:19px; color:var(--coral-600); margin-top:2px;}
+  .cancel-btn{
+    margin-top:8px; background:none; border:1.5px solid var(--line); color:var(--ink-soft);
+    font-size:12.5px; padding:6px 12px; border-radius:999px; cursor:pointer;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .cancel-btn:hover{border-color:var(--coral-600); color:var(--coral-600);}
+  .empty-state{
+    text-align:center; padding:36px 20px; color:var(--ink-soft); font-size:14px;
+    border:1.5px dashed var(--line); border-radius:var(--radius-m); background:var(--white);
+  }
+
+  /* Toast */
+  .toast{
+    position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    background:var(--teal-900); color:var(--white); padding:13px 22px; border-radius:999px;
+    font-size:14px; font-weight:600; box-shadow:0 8px 24px rgba(0,0,0,.25);
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease;
+    z-index:50; display:flex; align-items:center; gap:8px;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
+  @media (prefers-reduced-motion: reduce){ .toast{transition:opacity .01s linear;} }
+
+  footer{padding:28px 0 40px; text-align:center; color:var(--ink-soft); font-size:12.5px;}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="site-inner">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4.5 12.5c1.1 0 2-1.1 2-2.5S5.6 7.5 4.5 7.5 2.5 8.6 2.5 10s.9 2.5 2 2.5Zm5-4c1.1 0 2-1.2 2-2.75S10.6 3 9.5 3 7.5 4.2 7.5 5.75 8.4 8.5 9.5 8.5Zm5 0c1.1 0 2-1.2 2-2.75S15.6 3 14.5 3s-2 1.2-2 2.75 .9 2.75 2 2.75Zm5 4c1.1 0 2-1.1 2-2.5s-.9-2.5-2-2.5-2 1.1-2 2.5.9 2.5 2 2.5ZM12 12c-2.9 0-6.5 2.1-6.5 4.9 0 1.7 1.4 2.6 3 2.4 1.1-.1 1.9-.7 3.5-.7s2.4.6 3.5.7c1.6.2 3-.7 3-2.4 0-2.8-3.6-4.9-6.5-4.9Z"/></svg>
+      Colleen Feliz
+    </div>
+    <div class="site-tag">Banho, tosa e cuidados para o seu pet</div>
+  </div>
+</header>
+
+<div class="wrap hero">
+  <h1>Agende o dia de spa do seu pet</h1>
+  <p>Escolha o porte, os serviços e o horário — o valor é calculado na hora. Assim que você confirma, a gente já recebe o aviso no WhatsApp.</p>
+</div>
+
+<div class="wrap">
+  <div class="tabs-nav">
+    <button type="button" class="tab-btn active" data-tab="agendar">Agendar</button>
+    <button type="button" class="tab-btn" data-tab="meus">Meus agendamentos</button>
+  </div>
+</div>
+
+<main class="wrap">
+
+  <!-- TAB: AGENDAR -->
+  <section class="tab-panel active" id="tabAgendar">
+    <div class="grid">
+      <div class="card">
+        <h2>Novo agendamento</h2>
+        <p class="hint">Todos os campos marcados são necessários para confirmar.</p>
+
+        <div class="error-box" id="errorBox"></div>
+        <div class="success-banner" id="successBanner"></div>
+
+        <form id="bookingForm" novalidate>
+
+          <fieldset>
+            <legend>Tutor e pet</legend>
+            <div class="two-col">
+              <div class="field">
+                <label class="simple" for="tutorNome">Seu nome</label>
+                <input type="text" id="tutorNome" placeholder="Ex: Ana Souza">
+              </div>
+              <div class="field">
+                <label class="simple" for="tutorTel">WhatsApp</label>
+                <input type="tel" id="tutorTel" placeholder="(11) 90000-0000">
+              </div>
+            </div>
+            <div class="field">
+              <label class="simple" for="petNome">Nome do pet</label>
+              <input type="text" id="petNome" placeholder="Ex: Thor">
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Porte do pet</legend>
+            <div class="porte-grid" id="porteGrid"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Serviços</legend>
+            <div class="service-list" id="serviceList"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Data e horário de entrega</legend>
+            <div class="two-col">
+              <div class="field">
+                <label class="simple" for="dataAgendamento">Data</label>
+                <input type="date" id="dataAgendamento">
+              </div>
+              <div class="field">
+                <label class="simple" for="horaAgendamento">Horário</label>
+                <input type="time" id="horaAgendamento">
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Busca e entrega</legend>
+            <div class="toggle-row">
+              <div class="label-txt">
+                <strong>Buscar o pet em casa</strong>
+                <span>Taxa fixa de R$ 20,00 na região atendida</span>
+              </div>
+              <div class="switch">
+                <input type="checkbox" id="buscaToggle">
+                <label for="buscaToggle" class="track"><span class="thumb"></span></label>
+              </div>
+            </div>
+            <div class="pickup-fields" id="pickupFields">
+              <div class="field" style="margin-bottom:0;">
+                <label class="simple" for="endereco">Endereço para busca</label>
+                <input type="text" id="endereco" placeholder="Rua, número, bairro">
+              </div>
+              <div class="field" style="margin-bottom:0;">
+                <label class="simple" for="horaBusca">Horário desejado para a busca</label>
+                <input type="time" id="horaBusca">
+              </div>
+            </div>
+          </fieldset>
+
+          <div class="field">
+            <label class="simple" for="obs">Observações (opcional)</label>
+            <textarea id="obs" placeholder="Alergias, comportamento, preferências de corte..."></textarea>
+          </div>
+
+          <button type="submit" class="submit-btn">Confirmar agendamento</button>
+        </form>
+      </div>
+
+      <aside class="card summary">
+        <h2>Resumo</h2>
+        <div id="summaryBody">
+          <p class="empty-note">Selecione o porte e os serviços para ver o valor.</p>
+        </div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- TAB: MEUS AGENDAMENTOS -->
+  <section class="tab-panel" id="tabMeus">
+    <div class="card lookup-card">
+      <h2>Consultar agendamento</h2>
+      <p class="hint">Informe o WhatsApp usado e o código de cancelamento que você recebeu ao agendar.</p>
+      <div class="error-box" id="lookupError"></div>
+      <div class="field">
+        <label class="simple" for="lookupTel">WhatsApp usado no agendamento</label>
+        <input type="tel" id="lookupTel" placeholder="(11) 90000-0000">
+      </div>
+      <div class="field">
+        <label class="simple" for="lookupCode">Código de cancelamento</label>
+        <input type="text" id="lookupCode" placeholder="Ex: 4821" maxlength="4">
+      </div>
+      <button type="button" class="lookup-btn" id="lookupBtn">Buscar agendamento</button>
+    </div>
+    <p class="lookup-note">Cada agendamento tem seu próprio código — se você marcou mais de um serviço em datas diferentes, consulte um de cada vez.</p>
+    <div id="lookupResults"></div>
+  </section>
+
+</main>
+
+<footer>Colleen Feliz</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Número do PET SHOP que recebe o aviso automático no WhatsApp assim que alguém agenda.
+  // Formato: código do país + DDD + número, só dígitos. Troque pelo número real do salão.
+  var CONFIG = { shopWhatsapp: '5551985803243' };
+
+  var SIZES = [
+    {id:'P', nome:'Pequeno', faixa:'até 10 kg'},
+    {id:'M', nome:'Médio', faixa:'10–20 kg'},
+    {id:'G', nome:'Grande', faixa:'20–35 kg'},
+    {id:'GG', nome:'Gigante', faixa:'acima de 35 kg'}
+  ];
+
+  var SERVICES = [
+    { id:'banho', nome:'Banho', desc:'Produtos hipoalergênicos e secagem completa',
+      precos:{P:40,M:55,G:70,GG:90},
+      icon:'<path d="M12 2c-3 4-6 7.5-6 11a6 6 0 0 0 12 0c0-3.5-3-7-6-11Z"/>' },
+    { id:'tosa-higienica', nome:'Tosa higiênica', desc:'Aparo de patas, focinho e região íntima',
+      precos:{P:35,M:45,G:60,GG:75},
+      icon:'<path d="M9.6 9.6 4 4m5.6 5.6L4 20m5.6-10.4 5.4-5.4M20 4l-6.5 6.5M12 12l8 8M14 10l3.5-3.5"/>' },
+    { id:'tosa-completa', nome:'Tosa completa', desc:'Corte completo do pelo conforme a raça',
+      precos:{P:65,M:85,G:110,GG:140},
+      icon:'<path d="M9.6 9.6 4 4m5.6 5.6L4 20m5.6-10.4 5.4-5.4M20 4l-6.5 6.5M12 12l8 8M14 10l3.5-3.5"/>' },
+    { id:'hidratacao', nome:'Hidratação', desc:'Máscara hidratante para pelo e pele',
+      precos:{P:30,M:40,G:50,GG:65},
+      icon:'<path d="M12 2s6 7 6 11.5A6 6 0 0 1 6 13.5C6 9 12 2 12 2Z"/>' },
+    { id:'unhas', nome:'Corte de unhas', desc:'Corte e lixamento das unhas',
+      precos:{P:15,M:15,G:20,GG:25},
+      icon:'<path d="M6 4v6a6 6 0 0 0 12 0V4M6 20h12"/>' }
+  ];
+
+  var TAXA_BUSCA = 20;
+
+  var state = { porte:null, servicos:new Set(), busca:false };
+
+  var porteGrid = document.getElementById('porteGrid');
+  var serviceList = document.getElementById('serviceList');
+  var summaryBody = document.getElementById('summaryBody');
+  var errorBox = document.getElementById('errorBox');
+  var successBanner = document.getElementById('successBanner');
+  var toastEl = document.getElementById('toast');
+  var buscaToggle = document.getElementById('buscaToggle');
+  var pickupFields = document.getElementById('pickupFields');
+  var form = document.getElementById('bookingForm');
+  var dataInput = document.getElementById('dataAgendamento');
+
+  var lookupTel = document.getElementById('lookupTel');
+  var lookupCode = document.getElementById('lookupCode');
+  var lookupError = document.getElementById('lookupError');
+  var lookupResults = document.getElementById('lookupResults');
+
+  function money(v){ return 'R$ ' + v.toFixed(2).replace('.', ','); }
+  function formatDate(iso){ if(!iso) return ''; var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
+  function onlyDigits(s){ return (s || '').replace(/\D/g, ''); }
+  function generateCode(){ return String(Math.floor(1000 + Math.random()*9000)); }
+  function escapeHtml(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
+  // ---------- Tabs ----------
+  document.querySelectorAll('.tab-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab === 'agendar' ? 'tabAgendar' : 'tabMeus').classList.add('active');
+    });
+  });
+
+  // ---------- Render porte options ----------
+  function renderPorteOptions(){
+    porteGrid.innerHTML = SIZES.map(function(s){
+      return '<input type="radio" name="porte" id="porte-'+s.id+'" value="'+s.id+'">' +
+        '<label class="porte-card" for="porte-'+s.id+'"><strong>'+s.nome+'</strong><span>'+s.faixa+'</span></label>';
+    }).join('');
+    porteGrid.querySelectorAll('input[name=porte]').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        state.porte = inp.value;
+        renderServiceOptions();
+        renderSummary();
+      });
+    });
+  }
+
+  // ---------- Render service checkboxes ----------
+  function renderServiceOptions(){
+    serviceList.innerHTML = SERVICES.map(function(sv){
+      var priceTxt = state.porte ? money(sv.precos[state.porte]) : 'selecione o porte';
+      var priceClass = state.porte ? 'service-price' : 'service-price muted';
+      var checked = state.servicos.has(sv.id) ? 'checked' : '';
+      return '<label class="service-row">' +
+        '<input type="checkbox" data-service="'+sv.id+'" '+checked+'>' +
+        '<span class="service-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">'+sv.icon+'</svg></span>' +
+        '<span class="service-main">' +
+          '<span class="row-top"><strong>'+sv.nome+'</strong><span class="'+priceClass+'">'+priceTxt+'</span></span>' +
+          '<span class="desc">'+sv.desc+'</span>' +
+        '</span>' +
+      '</label>';
+    }).join('');
+    serviceList.querySelectorAll('input[data-service]').forEach(function(inp){
+      inp.addEventListener('change', function(){
+        if(inp.checked) state.servicos.add(inp.dataset.service);
+        else state.servicos.delete(inp.dataset.service);
+        renderSummary();
+      });
+    });
+  }
+
+  // ---------- Summary ----------
+  function calcTotals(){
+    var subtotal = 0;
+    var items = [];
+    if(state.porte){
+      SERVICES.forEach(function(sv){
+        if(state.servicos.has(sv.id)){
+          var v = sv.precos[state.porte];
+          subtotal += v;
+          items.push({nome:sv.nome, valor:v});
+        }
+      });
+    }
+    var taxa = state.busca ? TAXA_BUSCA : 0;
+    return {items:items, subtotal:subtotal, taxa:taxa, total:subtotal+taxa};
+  }
+
+  function renderSummary(){
+    var t = calcTotals();
+    if(!state.porte || t.items.length === 0){
+      summaryBody.innerHTML = '<p class="empty-note">Selecione o porte e os serviços para ver o valor.</p>';
+      return;
+    }
+    var sizeObj = SIZES.filter(function(s){return s.id===state.porte;})[0];
+    var html = '<span class="porte-tag">Porte '+sizeObj.nome+'</span><ul>';
+    t.items.forEach(function(it){
+      html += '<li><span>'+it.nome+'</span><span>'+money(it.valor)+'</span></li>';
+    });
+    if(t.taxa > 0){
+      html += '<li><span>Busca e entrega</span><span>'+money(t.taxa)+'</span></li>';
+    }
+    html += '</ul><div class="total-row"><strong>Total</strong><span class="amount">'+money(t.total)+'</span></div>';
+    summaryBody.innerHTML = html;
+  }
+
+  // ---------- Toggle busca ----------
+  buscaToggle.addEventListener('change', function(){
+    state.busca = buscaToggle.checked;
+    pickupFields.classList.toggle('open', state.busca);
+    renderSummary();
+  });
+
+  // ---------- Toast ----------
+  var toastTimer = null;
+  function showToast(msg){
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function(){ toastEl.classList.remove('show'); }, 3200);
+  }
+
+  function showError(msg){ errorBox.textContent = msg; errorBox.classList.add('show'); }
+  function clearError(){ errorBox.classList.remove('show'); errorBox.textContent = ''; }
+
+  function showSuccessBanner(ag){
+    successBanner.innerHTML =
+      '<strong>Agendamento de '+escapeHtml(ag.petNome)+' confirmado para '+formatDate(ag.data)+' às '+ag.hora+'!</strong>' +
+      'Guarde o código abaixo: só com ele (e o WhatsApp usado agora) dá para ver ou cancelar esse agendamento depois, na aba "Meus agendamentos".' +
+      '<div class="code-row"><span class="code">'+ag.cancelCode+'</span>' +
+      '<button type="button" class="copy-btn" id="copyCodeBtn">Copiar código</button>' +
+      '<button type="button" class="close-btn" id="closeBannerBtn">Fechar</button></div>' +
+      '<div class="wa-note">Um aviso com os detalhes já foi aberto no WhatsApp da Colleen Feliz.</div>';
+    successBanner.classList.add('show');
+    document.getElementById('copyCodeBtn').addEventListener('click', function(){
+      navigator.clipboard && navigator.clipboard.writeText(ag.cancelCode).then(function(){
+        showToast('Código copiado!');
+      });
+    });
+    document.getElementById('closeBannerBtn').addEventListener('click', function(){
+      successBanner.classList.remove('show');
+    });
+  }
+
+  // ---------- Supabase (banco de dados real — os agendamentos ficam salvos no servidor) ----------
+  var SUPABASE_URL = 'https://hribekatdkvzpnsmfsgg.supabase.co';
+  var SUPABASE_ANON_KEY = 'sb_publishable_I5XG9iCAQ74i-lowrjfcew_00LXU3WL';
+  var TABLE_URL = SUPABASE_URL + '/rest/v1/agendamentos';
+  var SUPABASE_HEADERS = {
+    'apikey': SUPABASE_ANON_KEY,
+    'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+    'Content-Type': 'application/json'
+  };
+
+  function mapRowToAppointment(row){
+    return {
+      id: row.id,
+      cancelCode: row.cancel_code,
+      tutorNome: row.tutor_nome,
+      tutorTel: row.tutor_tel,
+      petNome: row.pet_nome,
+      porte: row.porte,
+      porteNome: row.porte_nome,
+      servicosNomes: row.servicos_nomes || [],
+      subtotal: row.subtotal,
+      taxaBusca: row.taxa_busca,
+      total: row.total,
+      data: row.data,
+      hora: (row.hora || '').slice(0,5),
+      busca: row.busca,
+      endereco: row.endereco,
+      horaBusca: row.hora_busca ? row.hora_busca.slice(0,5) : '',
+      obs: row.obs
+    };
+  }
+
+  async function insertAppointment(ag){
+    var row = {
+      cancel_code: ag.cancelCode, tutor_nome: ag.tutorNome, tutor_tel: ag.tutorTel, pet_nome: ag.petNome,
+      porte: ag.porte, porte_nome: ag.porteNome, servicos_nomes: ag.servicosNomes,
+      subtotal: ag.subtotal, taxa_busca: ag.taxaBusca, total: ag.total,
+      data: ag.data, hora: ag.hora, busca: ag.busca,
+      endereco: ag.endereco || null, hora_busca: ag.horaBusca || null, obs: ag.obs || null
+    };
+    var res = await fetch(TABLE_URL, {
+      method: 'POST',
+      headers: Object.assign({}, SUPABASE_HEADERS, {'Prefer':'return=representation'}),
+      body: JSON.stringify([row])
+    });
+    if(!res.ok){ throw new Error('Falha ao salvar no Supabase'); }
+    var saved = await res.json();
+    return mapRowToAppointment(saved[0]);
+  }
+
+  async function findAppointments(tel, code){
+    var telDigits = onlyDigits(tel);
+    var codeTrim = code.trim();
+    var url = TABLE_URL + '?tutor_tel_digits=eq.' + encodeURIComponent(telDigits) +
+      '&cancel_code=eq.' + encodeURIComponent(codeTrim) + '&order=data.asc,hora.asc';
+    var res = await fetch(url, { headers: SUPABASE_HEADERS });
+    if(!res.ok){ throw new Error('Falha ao consultar o Supabase'); }
+    var rows = await res.json();
+    return rows.map(mapRowToAppointment);
+  }
+
+  async function deleteAppointment(id){
+    var url = TABLE_URL + '?id=eq.' + encodeURIComponent(id);
+    var res = await fetch(url, { method:'DELETE', headers: SUPABASE_HEADERS });
+    if(!res.ok){ throw new Error('Falha ao cancelar no Supabase'); }
+  }
+
+  function renderLookupResults(list){
+    if(list.length === 0){
+      lookupResults.innerHTML = '<div class="empty-state">Nenhum agendamento encontrado com esse WhatsApp e código.</div>';
+      return;
+    }
+    var html = '';
+    list.forEach(function(ag){
+      var chips = ag.servicosNomes.map(function(n){ return '<span class="chip">'+n+'</span>'; }).join('');
+      if(ag.busca) chips += '<span class="chip busca">Busca em casa</span>';
+      html += '<div class="appt-card" style="margin-bottom:12px;">' +
+        '<div class="appt-main">' +
+          '<div class="pet-name">'+escapeHtml(ag.petNome)+' &middot; '+ag.porteNome+'</div>' +
+          '<div class="tutor">'+escapeHtml(ag.tutorNome)+' &middot; '+escapeHtml(ag.tutorTel)+'</div>' +
+          '<div class="appt-chips">'+chips+'</div>' +
+        '</div>' +
+        '<div class="appt-meta">' +
+          '<div class="when">'+formatDate(ag.data)+' às '+ag.hora+'</div>' +
+          '<div class="price">'+money(ag.total)+'</div>' +
+          '<button class="cancel-btn" data-id="'+ag.id+'" type="button">Cancelar</button>' +
+        '</div>' +
+      '</div>';
+    });
+    lookupResults.innerHTML = html;
+    lookupResults.querySelectorAll('.cancel-btn').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        btn.disabled = true;
+        btn.textContent = 'Cancelando…';
+        try{
+          await deleteAppointment(btn.dataset.id);
+          showToast('Agendamento cancelado.');
+          var refreshed = await findAppointments(lookupTel.value, lookupCode.value);
+          renderLookupResults(refreshed);
+        }catch(err){
+          lookupError.textContent = 'Não foi possível cancelar agora. Tente de novo em instantes.';
+          lookupError.classList.add('show');
+          btn.disabled = false;
+          btn.textContent = 'Cancelar';
+        }
+      });
+    });
+  }
+
+  var lookupBtn = document.getElementById('lookupBtn');
+  lookupBtn.addEventListener('click', async function(){
+    lookupError.classList.remove('show');
+    lookupError.textContent = '';
+    if(!lookupTel.value.trim() || !lookupCode.value.trim()){
+      lookupError.textContent = 'Informe o WhatsApp e o código de cancelamento.';
+      lookupError.classList.add('show');
+      lookupResults.innerHTML = '';
+      return;
+    }
+    lookupBtn.disabled = true;
+    lookupBtn.textContent = 'Buscando…';
+    lookupResults.innerHTML = '';
+    try{
+      var found = await findAppointments(lookupTel.value, lookupCode.value);
+      renderLookupResults(found);
+    }catch(err){
+      lookupError.textContent = 'Não foi possível consultar agora. Verifique sua internet e tente de novo.';
+      lookupError.classList.add('show');
+    }finally{
+      lookupBtn.disabled = false;
+      lookupBtn.textContent = 'Buscar agendamento';
+    }
+  });
+
+  // ---------- WhatsApp auto notification ----------
+  function buildWhatsAppMessage(ag){
+    var linhas = [];
+    linhas.push('Novo agendamento — Colleen Feliz');
+    linhas.push('Pet: ' + ag.petNome + ' (' + ag.porteNome + ')');
+    linhas.push('Tutor: ' + ag.tutorNome + ' — ' + ag.tutorTel);
+    linhas.push('Serviços: ' + ag.servicosNomes.join(', '));
+    linhas.push('Data: ' + formatDate(ag.data) + ' às ' + ag.hora);
+    if(ag.busca){
+      linhas.push('Busca em casa: ' + ag.endereco + ' às ' + ag.horaBusca);
+    }
+    if(ag.obs){ linhas.push('Observações: ' + ag.obs); }
+    linhas.push('Total: ' + money(ag.total));
+    return linhas.join('\n');
+  }
+
+  function sendWhatsAppNotification(ag, preOpenedWindow){
+    var msg = buildWhatsAppMessage(ag);
+    var url = 'https://wa.me/' + CONFIG.shopWhatsapp + '?text=' + encodeURIComponent(msg);
+    if(preOpenedWindow && !preOpenedWindow.closed){
+      preOpenedWindow.location.href = url;
+    }else{
+      window.open(url, '_blank');
+    }
+  }
+
+  // ---------- Form submit ----------
+  var submitBtn = form.querySelector('.submit-btn');
+  form.addEventListener('submit', async function(e){
+    e.preventDefault();
+    clearError();
+
+    var tutorNome = document.getElementById('tutorNome').value.trim();
+    var tutorTel = document.getElementById('tutorTel').value.trim();
+    var petNome = document.getElementById('petNome').value.trim();
+    var data = dataInput.value;
+    var hora = document.getElementById('horaAgendamento').value;
+    var endereco = document.getElementById('endereco').value.trim();
+    var horaBusca = document.getElementById('horaBusca').value;
+    var obs = document.getElementById('obs').value.trim();
+
+    if(!tutorNome || !tutorTel){ showError('Preencha seu nome e telefone.'); return; }
+    if(!petNome){ showError('Informe o nome do pet.'); return; }
+    if(!state.porte){ showError('Selecione o porte do pet.'); return; }
+    if(state.servicos.size === 0){ showError('Selecione pelo menos um serviço.'); return; }
+    if(!data || !hora){ showError('Escolha a data e o horário de entrega.'); return; }
+    if(state.busca && (!endereco || !horaBusca)){ showError('Preencha o endereço e o horário de busca, ou desative a busca em casa.'); return; }
+
+    var t = calcTotals();
+    var sizeObj = SIZES.filter(function(s){return s.id===state.porte;})[0];
+
+    var appointment = {
+      cancelCode: generateCode(),
+      tutorNome: tutorNome, tutorTel: tutorTel, petNome: petNome,
+      porte: state.porte, porteNome: sizeObj.nome,
+      servicosNomes: t.items.map(function(it){ return it.nome; }),
+      subtotal: t.subtotal, taxaBusca: t.taxa, total: t.total,
+      data: data, hora: hora,
+      busca: state.busca, endereco: state.busca ? endereco : '', horaBusca: state.busca ? horaBusca : '',
+      obs: obs
+    };
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Confirmando…';
+    // Aba em branco aberta já aqui (ainda dentro do clique) para o navegador não bloquear como pop-up
+    // quando ela for redirecionada ao WhatsApp mais abaixo, depois de salvar no Supabase.
+    var waWindow = window.open('', '_blank');
+    try{
+      var saved = await insertAppointment(appointment);
+
+      sendWhatsAppNotification(saved, waWindow);
+
+      showSuccessBanner(saved);
+      showToast('Agendamento de ' + petNome + ' confirmado!');
+
+      form.reset();
+      state = { porte:null, servicos:new Set(), busca:false };
+      pickupFields.classList.remove('open');
+      renderPorteOptions();
+      renderServiceOptions();
+      renderSummary();
+    }catch(err){
+      if(waWindow && !waWindow.closed){ waWindow.close(); }
+      showError('Não foi possível confirmar o agendamento agora. Verifique sua internet e tente de novo.');
+    }finally{
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Confirmar agendamento';
+    }
+  });
+
+  // ---------- Init ----------
+  dataInput.min = new Date().toISOString().split('T')[0];
+  renderPorteOptions();
+  renderServiceOptions();
+  renderSummary();
+
+})();
+</script>
+
+</body>
+</html>
