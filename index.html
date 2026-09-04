@@ -75,6 +75,18 @@
   .tab-panel{display:none;}
   .tab-panel.active{display:block;}
 
+  .filter-btn{
+    background:var(--white); border:1.5px solid var(--line); padding:8px 16px; border-radius:999px;
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:13px; color:var(--ink-soft); cursor:pointer;
+    transition:background .15s ease, color .15s ease, border-color .15s ease;
+  }
+  .filter-btn.active{background:var(--teal-900); border-color:var(--teal-900); color:var(--white);}
+  .filter-btn:hover:not(.active){border-color:var(--teal-600);}
+
+  .status-chip{font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px; text-transform:uppercase; letter-spacing:.3px;}
+  .status-chip.confirmado{background:var(--green-100); color:var(--green-600);}
+  .status-chip.cancelado{background:var(--coral-100); color:var(--coral-700);}
+
   /* Layout */
   main{padding:0 0 64px;}
   .grid{display:grid; grid-template-columns: 1fr; gap:20px; align-items:start;}
@@ -98,7 +110,7 @@
   .two-col{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
   @media (max-width:420px){ .two-col{grid-template-columns:1fr;} }
 
-  input[type=text], input[type=tel], input[type=date], input[type=time], textarea{
+  input[type=text], input[type=tel], input[type=date], input[type=time], input[type=password], textarea{
     width:100%; border:1.5px solid var(--line); border-radius:var(--radius-s);
     padding:11px 13px; font-size:15px; font-family:inherit; color:var(--ink);
     background:var(--white); transition:border-color .15s ease;
@@ -286,6 +298,7 @@
   <div class="tabs-nav">
     <button type="button" class="tab-btn active" data-tab="agendar">Agendar</button>
     <button type="button" class="tab-btn" data-tab="meus">Meus agendamentos</button>
+    <button type="button" class="tab-btn" data-tab="admin">Painel Admin</button>
   </div>
 </div>
 
@@ -407,6 +420,41 @@
     <div id="lookupResults"></div>
   </section>
 
+  <!-- TAB: PAINEL ADMIN -->
+  <section class="tab-panel" id="tabAdmin">
+    <div class="card lookup-card" id="adminLoginCard">
+      <h2>Login do painel</h2>
+      <p class="hint">Acesso restrito à administração da Colleen Feliz.</p>
+      <div class="error-box" id="adminLoginError"></div>
+      <div class="field">
+        <label class="simple" for="adminEmail">E-mail</label>
+        <input type="text" id="adminEmail" placeholder="admin@colleenfeliz.com.br">
+      </div>
+      <div class="field">
+        <label class="simple" for="adminSenha">Senha</label>
+        <input type="password" id="adminSenha" placeholder="Sua senha">
+      </div>
+      <button type="button" class="lookup-btn" id="adminLoginBtn">Entrar</button>
+    </div>
+
+    <div id="adminDashboard" style="display:none;">
+      <div class="card" style="margin-bottom:20px; display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between;">
+        <div>
+          <h2 style="margin-bottom:2px;">Todos os agendamentos</h2>
+          <p class="hint" style="margin:0;" id="adminStats">Carregando…</p>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button type="button" class="filter-btn active" data-status="">Todos</button>
+          <button type="button" class="filter-btn" data-status="confirmado">Confirmados</button>
+          <button type="button" class="filter-btn" data-status="cancelado">Cancelados</button>
+          <button type="button" class="cancel-btn" id="adminLogoutBtn" style="align-self:center;">Sair</button>
+        </div>
+      </div>
+      <div class="error-box" id="adminError"></div>
+      <div id="adminResults"></div>
+    </div>
+  </section>
+
 </main>
 
 <footer>Colleen Feliz</footer>
@@ -419,7 +467,7 @@
 
   // Número do PET SHOP que recebe o aviso automático no WhatsApp assim que alguém agenda.
   // Formato: código do país + DDD + número, só dígitos. Troque pelo número real do salão.
-  var CONFIG = { shopWhatsapp: '5551985803243' };
+  var CONFIG = { shopWhatsapp: '5511999999999' };
 
   var SIZES = [
     {id:'P', nome:'Pequeno', faixa:'até 10 kg'},
@@ -473,12 +521,13 @@
   function escapeHtml(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
   // ---------- Tabs ----------
-  document.querySelectorAll('.tab-btn').forEach(function(btn){
+  document.querySelectorAll('.tabs-nav .tab-btn').forEach(function(btn){
     btn.addEventListener('click', function(){
-      document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('active'); });
+      document.querySelectorAll('.tabs-nav .tab-btn').forEach(function(b){ b.classList.remove('active'); });
       document.querySelectorAll('.tab-panel').forEach(function(p){ p.classList.remove('active'); });
       btn.classList.add('active');
-      document.getElementById(btn.dataset.tab === 'agendar' ? 'tabAgendar' : 'tabMeus').classList.add('active');
+      var panelId = { agendar:'tabAgendar', meus:'tabMeus', admin:'tabAdmin' }[btn.dataset.tab];
+      document.getElementById(panelId).classList.add('active');
     });
   });
 
@@ -622,7 +671,10 @@
       busca: row.busca,
       endereco: row.endereco,
       horaBusca: row.hora_busca ? row.hora_busca.slice(0,5) : '',
-      obs: row.obs
+      obs: row.obs,
+      status: row.status,
+      canceladoEm: row.cancelado_em,
+      criadoEm: row.criado_em
     };
   }
 
@@ -648,16 +700,20 @@
     var telDigits = onlyDigits(tel);
     var codeTrim = code.trim();
     var url = TABLE_URL + '?tutor_tel_digits=eq.' + encodeURIComponent(telDigits) +
-      '&cancel_code=eq.' + encodeURIComponent(codeTrim) + '&order=data.asc,hora.asc';
+      '&cancel_code=eq.' + encodeURIComponent(codeTrim) + '&status=eq.confirmado&order=data.asc,hora.asc';
     var res = await fetch(url, { headers: SUPABASE_HEADERS });
     if(!res.ok){ throw new Error('Falha ao consultar o Supabase'); }
     var rows = await res.json();
     return rows.map(mapRowToAppointment);
   }
 
-  async function deleteAppointment(id){
+  async function cancelAppointment(id){
     var url = TABLE_URL + '?id=eq.' + encodeURIComponent(id);
-    var res = await fetch(url, { method:'DELETE', headers: SUPABASE_HEADERS });
+    var res = await fetch(url, {
+      method: 'PATCH',
+      headers: SUPABASE_HEADERS,
+      body: JSON.stringify({ status: 'cancelado', cancelado_em: new Date().toISOString() })
+    });
     if(!res.ok){ throw new Error('Falha ao cancelar no Supabase'); }
   }
 
@@ -692,7 +748,7 @@
         // Aba em branco aberta já aqui (ainda dentro do clique) para não ser bloqueada como pop-up.
         var waWindow = window.open('', '_blank');
         try{
-          await deleteAppointment(btn.dataset.id);
+          await cancelAppointment(btn.dataset.id);
           if(ag){ sendWhatsAppNotification(ag, waWindow, 'Agendamento cancelado'); }
           else if(waWindow && !waWindow.closed){ waWindow.close(); }
           showToast('Agendamento cancelado.');
@@ -822,6 +878,141 @@
       submitBtn.disabled = false;
       submitBtn.textContent = 'Confirmar agendamento';
     }
+  });
+
+  // ---------- Painel Admin ----------
+  var adminSession = { accessToken: null };
+  var adminCurrentFilter = '';
+
+  var adminLoginCard = document.getElementById('adminLoginCard');
+  var adminDashboard = document.getElementById('adminDashboard');
+  var adminLoginError = document.getElementById('adminLoginError');
+  var adminError = document.getElementById('adminError');
+  var adminResults = document.getElementById('adminResults');
+  var adminStats = document.getElementById('adminStats');
+  var adminLoginBtn = document.getElementById('adminLoginBtn');
+
+  async function adminLogin(email, senha){
+    var res = await fetch(SUPABASE_URL + '/auth/v1/token?grant_type=password', {
+      method: 'POST',
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, password: senha })
+    });
+    var data = await res.json();
+    if(!res.ok){ throw new Error(data.error_description || data.msg || 'E-mail ou senha incorretos.'); }
+    return data.access_token;
+  }
+
+  async function adminFetchAppointments(statusFilter){
+    var url = TABLE_URL + '?order=criado_em.desc';
+    if(statusFilter){ url += '&status=eq.' + encodeURIComponent(statusFilter); }
+    var res = await fetch(url, {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + adminSession.accessToken,
+        'Content-Type': 'application/json'
+      }
+    });
+    if(res.status === 401){ throw new Error('SESSAO_EXPIRADA'); }
+    if(!res.ok){ throw new Error('Falha ao consultar o Supabase'); }
+    var rows = await res.json();
+    return rows.map(mapRowToAppointment);
+  }
+
+  function renderAdminList(list){
+    if(list.length === 0){
+      adminResults.innerHTML = '<div class="empty-state">Nenhum agendamento encontrado para esse filtro.</div>';
+      return;
+    }
+    var confirmados = list.filter(function(a){ return a.status === 'confirmado'; }).length;
+    var cancelados = list.filter(function(a){ return a.status === 'cancelado'; }).length;
+    adminStats.textContent = list.length + ' agendamento(s) — ' + confirmados + ' confirmado(s), ' + cancelados + ' cancelado(s)';
+
+    var html = '';
+    list.forEach(function(ag){
+      var chips = ag.servicosNomes.map(function(n){ return '<span class="chip">'+n+'</span>'; }).join('');
+      if(ag.busca) chips += '<span class="chip busca">Busca em casa</span>';
+      var statusLabel = ag.status === 'cancelado' ? 'Cancelado' : 'Confirmado';
+      html += '<div class="appt-card" style="margin-bottom:12px;">' +
+        '<div class="appt-main">' +
+          '<div class="pet-name">'+escapeHtml(ag.petNome)+' &middot; '+ag.porteNome+
+            ' <span class="status-chip '+ag.status+'">'+statusLabel+'</span></div>' +
+          '<div class="tutor">'+escapeHtml(ag.tutorNome)+' &middot; '+escapeHtml(ag.tutorTel)+'</div>' +
+          '<div class="appt-chips">'+chips+'</div>' +
+          (ag.obs ? '<div class="tutor" style="margin-top:6px;">Obs: '+escapeHtml(ag.obs)+'</div>' : '') +
+          (ag.busca ? '<div class="tutor">Endereço: '+escapeHtml(ag.endereco)+' às '+ag.horaBusca+'</div>' : '') +
+          (ag.status === 'cancelado' && ag.canceladoEm ? '<div class="tutor">Cancelado em: '+new Date(ag.canceladoEm).toLocaleString('pt-BR')+'</div>' : '') +
+        '</div>' +
+        '<div class="appt-meta">' +
+          '<div class="when">'+formatDate(ag.data)+' às '+ag.hora+'</div>' +
+          '<div class="price">'+money(ag.total)+'</div>' +
+        '</div>' +
+      '</div>';
+    });
+    adminResults.innerHTML = html;
+  }
+
+  async function refreshAdminList(){
+    adminError.classList.remove('show');
+    adminResults.innerHTML = '<div class="loading-state">Carregando…</div>';
+    try{
+      var list = await adminFetchAppointments(adminCurrentFilter);
+      renderAdminList(list);
+    }catch(err){
+      if(err.message === 'SESSAO_EXPIRADA'){
+        adminSession.accessToken = null;
+        adminDashboard.style.display = 'none';
+        adminLoginCard.style.display = 'block';
+        adminLoginError.textContent = 'Sua sessão expirou. Entre novamente.';
+        adminLoginError.classList.add('show');
+        return;
+      }
+      adminError.textContent = 'Não foi possível carregar os agendamentos agora.';
+      adminError.classList.add('show');
+      adminResults.innerHTML = '';
+    }
+  }
+
+  adminLoginBtn.addEventListener('click', async function(){
+    adminLoginError.classList.remove('show');
+    var email = document.getElementById('adminEmail').value.trim();
+    var senha = document.getElementById('adminSenha').value;
+    if(!email || !senha){
+      adminLoginError.textContent = 'Informe e-mail e senha.';
+      adminLoginError.classList.add('show');
+      return;
+    }
+    adminLoginBtn.disabled = true;
+    adminLoginBtn.textContent = 'Entrando…';
+    try{
+      adminSession.accessToken = await adminLogin(email, senha);
+      adminLoginCard.style.display = 'none';
+      adminDashboard.style.display = 'block';
+      adminCurrentFilter = '';
+      refreshAdminList();
+    }catch(err){
+      adminLoginError.textContent = err.message;
+      adminLoginError.classList.add('show');
+    }finally{
+      adminLoginBtn.disabled = false;
+      adminLoginBtn.textContent = 'Entrar';
+    }
+  });
+
+  document.getElementById('adminLogoutBtn').addEventListener('click', function(){
+    adminSession.accessToken = null;
+    adminDashboard.style.display = 'none';
+    adminLoginCard.style.display = 'block';
+    document.getElementById('adminSenha').value = '';
+  });
+
+  document.querySelectorAll('#adminDashboard .filter-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll('#adminDashboard .filter-btn').forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      adminCurrentFilter = btn.dataset.status;
+      refreshAdminList();
+    });
   });
 
   // ---------- Init ----------
