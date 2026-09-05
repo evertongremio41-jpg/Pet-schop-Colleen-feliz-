@@ -86,6 +86,7 @@
   .status-chip{font-size:11.5px; font-weight:700; padding:3px 10px; border-radius:999px; text-transform:uppercase; letter-spacing:.3px;}
   .status-chip.confirmado{background:var(--green-100); color:var(--green-600);}
   .status-chip.cancelado{background:var(--coral-100); color:var(--coral-700);}
+  .status-chip.pronto{background:var(--sand-100); color:#7a4f14;}
 
   .admin-actions{display:flex; gap:8px; margin-top:8px; flex-wrap:wrap; justify-content:flex-end;}
   .admin-actions .edit-btn{
@@ -357,7 +358,7 @@
               </div>
               <div class="field">
                 <label class="simple" for="tutorTel">WhatsApp</label>
-                <input type="tel" id="tutorTel" placeholder="(11) 90000-0000">
+                <input type="tel" id="tutorTel" inputmode="numeric" maxlength="15" placeholder="(11) 90000-0000">
               </div>
             </div>
             <div class="field">
@@ -440,7 +441,7 @@
       <div class="error-box" id="lookupError"></div>
       <div class="field">
         <label class="simple" for="lookupTel">WhatsApp usado no agendamento</label>
-        <input type="tel" id="lookupTel" placeholder="(11) 90000-0000">
+        <input type="tel" id="lookupTel" inputmode="numeric" maxlength="15" placeholder="(11) 90000-0000">
       </div>
       <div class="field">
         <label class="simple" for="lookupCode">Código de cancelamento</label>
@@ -478,6 +479,7 @@
         <div style="display:flex; gap:8px; flex-wrap:wrap;">
           <button type="button" class="filter-btn active" data-status="">Todos</button>
           <button type="button" class="filter-btn" data-status="confirmado">Confirmados</button>
+          <button type="button" class="filter-btn" data-status="pronto">Prontos</button>
           <button type="button" class="filter-btn" data-status="cancelado">Cancelados</button>
           <button type="button" class="cancel-btn" id="adminLogoutBtn" style="align-self:center;">Sair</button>
         </div>
@@ -616,6 +618,27 @@
   function formatDate(iso){ if(!iso) return ''; var p = iso.split('-'); return p[2] + '/' + p[1] + '/' + p[0]; }
   function onlyDigits(s){ return (s || '').replace(/\D/g, ''); }
   function generateCode(){ return String(Math.floor(1000 + Math.random()*9000)); }
+
+  // Formata e trava o telefone no padrão brasileiro: (DDD) 9XXXX-XXXX — no máximo 11 dígitos.
+  function maskPhone(digits){
+    digits = digits.slice(0, 11);
+    if(digits.length === 0) return '';
+    if(digits.length <= 2) return '(' + digits;
+    var ddd = digits.slice(0,2);
+    var resto = digits.slice(2);
+    if(digits.length <= 10){ // fixo: DDD + 8 dígitos
+      var p1 = resto.slice(0,4), p2 = resto.slice(4);
+      return '(' + ddd + ') ' + p1 + (p2 ? '-' + p2 : '');
+    }
+    var p1m = resto.slice(0,5), p2m = resto.slice(5); // celular: DDD + 9 dígitos
+    return '(' + ddd + ') ' + p1m + (p2m ? '-' + p2m : '');
+  }
+  function applyPhoneMask(inputEl){
+    inputEl.addEventListener('input', function(){
+      var digits = onlyDigits(inputEl.value).slice(0, 11);
+      inputEl.value = maskPhone(digits);
+    });
+  }
   function escapeHtml(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
   // ---------- Tabs ----------
@@ -772,6 +795,8 @@
       obs: row.obs,
       status: row.status,
       canceladoEm: row.cancelado_em,
+      pronto: row.pronto,
+      prontoEm: row.pronto_em,
       criadoEm: row.criado_em
     };
   }
@@ -825,6 +850,16 @@
     if(!res.ok){ throw new Error('Falha ao atualizar no Supabase'); }
     var saved = await res.json();
     return mapRowToAppointment(saved[0]);
+  }
+
+  async function markAsReady(id){
+    var url = TABLE_URL + '?id=eq.' + encodeURIComponent(id);
+    var res = await fetch(url, {
+      method: 'PATCH',
+      headers: SUPABASE_HEADERS,
+      body: JSON.stringify({ pronto: true, pronto_em: new Date().toISOString() })
+    });
+    if(!res.ok){ throw new Error('Falha ao atualizar no Supabase'); }
   }
 
   function renderLookupResults(list){
@@ -913,6 +948,8 @@
         ' (' + ag.porteNome + '), marcado para ' + formatDate(ag.data) + ' às ' + ag.hora +
         ', foi cancelado pela Colleen Feliz.');
       if(motivo){ linhas.push('Motivo: ' + motivo); }
+    }else if(tipo === 'pronto'){
+      linhas.push('Olá, ' + ag.tutorNome + '! O ' + ag.petNome + ' já está pronto e te esperando para retirada na Colleen Feliz. 🐾');
     }else{
       linhas.push('Olá, ' + ag.tutorNome + '! Seu agendamento de ' + ag.petNome + ' foi atualizado pela Colleen Feliz:');
       linhas.push('Nova data: ' + formatDate(ag.data) + ' às ' + ag.hora);
@@ -1047,9 +1084,11 @@
     return data.access_token;
   }
 
-  async function adminFetchAppointments(statusFilter){
+  async function adminFetchAppointments(filterKey){
     var url = TABLE_URL + '?order=criado_em.desc';
-    if(statusFilter){ url += '&status=eq.' + encodeURIComponent(statusFilter); }
+    if(filterKey === 'confirmado'){ url += '&status=eq.confirmado&pronto=eq.false'; }
+    else if(filterKey === 'pronto'){ url += '&status=eq.confirmado&pronto=eq.true'; }
+    else if(filterKey === 'cancelado'){ url += '&status=eq.cancelado'; }
     var res = await fetch(url, {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
@@ -1068,17 +1107,21 @@
       adminResults.innerHTML = '<div class="empty-state">Nenhum agendamento encontrado para esse filtro.</div>';
       return;
     }
-    var confirmados = list.filter(function(a){ return a.status === 'confirmado'; }).length;
+    var confirmados = list.filter(function(a){ return a.status === 'confirmado' && !a.pronto; }).length;
+    var prontos = list.filter(function(a){ return a.status === 'confirmado' && a.pronto; }).length;
     var cancelados = list.filter(function(a){ return a.status === 'cancelado'; }).length;
-    adminStats.textContent = list.length + ' agendamento(s) — ' + confirmados + ' confirmado(s), ' + cancelados + ' cancelado(s)';
+    adminStats.textContent = list.length + ' agendamento(s) — ' + confirmados + ' em andamento, ' + prontos + ' pronto(s), ' + cancelados + ' cancelado(s)';
 
     var html = '';
     list.forEach(function(ag){
       var chips = ag.servicosNomes.map(function(n){ return '<span class="chip">'+n+'</span>'; }).join('');
       if(ag.busca) chips += '<span class="chip busca">Busca em casa</span>';
       var statusLabel = ag.status === 'cancelado' ? 'Cancelado' : 'Confirmado';
+      var prontoChip = (ag.status === 'confirmado' && ag.pronto)
+        ? ' <span class="status-chip pronto">Pronto para retirada</span>' : '';
       var acoes = ag.status === 'confirmado'
         ? '<div class="admin-actions">' +
+            (!ag.pronto ? '<button type="button" class="edit-btn" data-action="pronto" data-id="'+ag.id+'">Marcar como pronto</button>' : '') +
             '<button type="button" class="edit-btn" data-action="edit" data-id="'+ag.id+'">Editar</button>' +
             '<button type="button" class="cancel-btn" data-action="cancel" data-id="'+ag.id+'">Cancelar e avisar cliente</button>' +
           '</div>'
@@ -1087,12 +1130,13 @@
         '<div style="display:flex; flex-wrap:wrap; gap:14px; justify-content:space-between; align-items:flex-start;">' +
         '<div class="appt-main">' +
           '<div class="pet-name">'+escapeHtml(ag.petNome)+' &middot; '+ag.porteNome+
-            ' <span class="status-chip '+ag.status+'">'+statusLabel+'</span></div>' +
+            ' <span class="status-chip '+ag.status+'">'+statusLabel+'</span>'+prontoChip+'</div>' +
           '<div class="tutor">'+escapeHtml(ag.tutorNome)+' &middot; '+escapeHtml(ag.tutorTel)+'</div>' +
           '<div class="tutor">Protocolo: <strong>'+ag.cancelCode+'</strong></div>' +
           '<div class="appt-chips">'+chips+'</div>' +
           (ag.obs ? '<div class="tutor" style="margin-top:6px;">Obs: '+escapeHtml(ag.obs)+'</div>' : '') +
           (ag.busca ? '<div class="tutor">Endereço: '+escapeHtml(ag.endereco)+' às '+ag.horaBusca+'</div>' : '') +
+          (ag.pronto && ag.prontoEm ? '<div class="tutor">Pronto desde: '+new Date(ag.prontoEm).toLocaleString('pt-BR')+'</div>' : '') +
           (ag.status === 'cancelado' && ag.canceladoEm ? '<div class="tutor">Cancelado em: '+new Date(ag.canceladoEm).toLocaleString('pt-BR')+'</div>' : '') +
         '</div>' +
         '<div class="appt-meta">' +
@@ -1104,6 +1148,28 @@
       '</div>';
     });
     adminResults.innerHTML = html;
+
+    adminResults.querySelectorAll('[data-action="pronto"]').forEach(function(btn){
+      btn.addEventListener('click', async function(){
+        var ag = list.filter(function(a){ return a.id === btn.dataset.id; })[0];
+        if(!ag) return;
+        btn.disabled = true;
+        btn.textContent = 'Marcando…';
+        var waWindow = window.open('', '_blank');
+        try{
+          await markAsReady(ag.id);
+          sendWhatsAppToClient(ag, waWindow, 'pronto');
+          showToast('Marcado como pronto e cliente avisado.');
+          refreshAdminList();
+        }catch(err){
+          if(waWindow && !waWindow.closed){ waWindow.close(); }
+          adminError.textContent = 'Não foi possível atualizar agora.';
+          adminError.classList.add('show');
+          btn.disabled = false;
+          btn.textContent = 'Marcar como pronto';
+        }
+      });
+    });
 
     adminResults.querySelectorAll('[data-action="cancel"]').forEach(function(btn){
       btn.addEventListener('click', function(){
@@ -1314,6 +1380,8 @@
   renderPorteOptions();
   renderServiceOptions();
   renderSummary();
+  applyPhoneMask(document.getElementById('tutorTel'));
+  applyPhoneMask(lookupTel);
 
 })();
 </script>
