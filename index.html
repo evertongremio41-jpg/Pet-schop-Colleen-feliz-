@@ -52,16 +52,23 @@
   .site-inner{
     max-width:1080px; margin:0 auto; padding:18px 20px;
     display:flex; align-items:center; justify-content:space-between; gap:12px;
+    flex-wrap:wrap;
   }
   .brand{color:var(--white); font-size:22px; display:flex; align-items:center; gap:10px; letter-spacing:.2px;}
   .brand svg{width:30px; height:30px; flex:none;}
-  .site-tag{font-size:13px; color:var(--teal-050); opacity:.85; display:none;}
-  @media (min-width:640px){ .site-tag{display:block;} }
+  .site-tag{font-size:13px; color:var(--teal-050); opacity:.85;}
+  @media (max-width:639px){
+    .site-inner{flex-direction:column; text-align:center; gap:4px;}
+  }
 
   /* Hero */
   .hero{padding:40px 0 8px;}
   .hero h1{font-size:clamp(26px,4vw,38px); margin:0 0 10px; line-height:1.15;}
   .hero p{margin:0; max-width:56ch; color:var(--ink-soft); font-size:16px;}
+  @media (max-width:639px){
+    .hero{text-align:center;}
+    .hero p{margin:0 auto;}
+  }
 
   /* Tabs */
   .tabs-nav{display:flex; gap:8px; margin:28px 0 20px; flex-wrap:wrap;}
@@ -378,21 +385,7 @@
           </fieldset>
 
           <fieldset>
-            <legend>Data e horário de entrega</legend>
-            <div class="two-col">
-              <div class="field">
-                <label class="simple" for="dataAgendamento">Data</label>
-                <input type="date" id="dataAgendamento">
-              </div>
-              <div class="field">
-                <label class="simple" for="horaAgendamento">Horário</label>
-                <input type="time" id="horaAgendamento">
-              </div>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend>Busca e entrega</legend>
+            <legend>Busca em casa</legend>
             <div class="toggle-row">
               <div class="label-txt">
                 <strong>Buscar o pet em casa</strong>
@@ -409,8 +402,22 @@
                 <input type="text" id="endereco" placeholder="Rua, número, bairro">
               </div>
               <div class="field" style="margin-bottom:0;">
-                <label class="simple" for="horaBusca">Horário desejado para a busca</label>
+                <label class="simple" for="horaBusca">Horário de busca</label>
                 <input type="time" id="horaBusca">
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset>
+            <legend>Data e horário de entrega</legend>
+            <div class="two-col">
+              <div class="field">
+                <label class="simple" for="dataAgendamento">Data</label>
+                <input type="date" id="dataAgendamento">
+              </div>
+              <div class="field">
+                <label class="simple" for="horaAgendamento">Horário de entrega</label>
+                <input type="time" id="horaAgendamento">
               </div>
             </div>
           </fieldset>
@@ -746,13 +753,15 @@
   function clearError(){ errorBox.classList.remove('show'); errorBox.textContent = ''; }
 
   function showSuccessBanner(ag){
+    var buscaLinha = ag.busca ? '<div class="wa-note">Busca em casa às '+ag.horaBusca+', em '+escapeHtml(ag.endereco)+'.</div>' : '';
     successBanner.innerHTML =
-      '<strong>Agendamento de '+escapeHtml(ag.petNome)+' confirmado para '+formatDate(ag.data)+' às '+ag.hora+'!</strong>' +
+      '<strong>Agendamento de '+escapeHtml(ag.petNome)+' confirmado — entrega em '+formatDate(ag.data)+' às '+ag.hora+'!</strong>' +
       'Guarde o código abaixo: só com ele (e o WhatsApp usado agora) dá para ver ou cancelar esse agendamento depois, na aba "Meus agendamentos".' +
       '<div class="code-row"><span class="code">'+ag.cancelCode+'</span>' +
       '<button type="button" class="copy-btn" id="copyCodeBtn">Copiar código</button>' +
       '<button type="button" class="close-btn" id="closeBannerBtn">Fechar</button></div>' +
-      '<div class="wa-note">Um aviso com os detalhes já foi aberto no WhatsApp da Colleen Feliz.</div>';
+      buscaLinha +
+      '<div class="wa-note">Um aviso com todos os detalhes (incluindo esse código) já foi aberto no WhatsApp da Colleen Feliz.</div>';
     successBanner.classList.add('show');
     document.getElementById('copyCodeBtn').addEventListener('click', function(){
       navigator.clipboard && navigator.clipboard.writeText(ag.cancelCode).then(function(){
@@ -875,9 +884,12 @@
         '<div class="appt-main">' +
           '<div class="pet-name">'+escapeHtml(ag.petNome)+' &middot; '+ag.porteNome+'</div>' +
           '<div class="tutor">'+escapeHtml(ag.tutorNome)+' &middot; '+escapeHtml(ag.tutorTel)+'</div>' +
+          '<div class="tutor">Protocolo: <strong>'+ag.cancelCode+'</strong></div>' +
           '<div class="appt-chips">'+chips+'</div>' +
+          (ag.busca ? '<div class="tutor">Horário de busca: <strong>'+ag.horaBusca+'</strong> &middot; '+escapeHtml(ag.endereco)+'</div>' : '') +
         '</div>' +
         '<div class="appt-meta">' +
+          '<div class="tutor" style="text-align:right;">Entrega</div>' +
           '<div class="when">'+formatDate(ag.data)+' às '+ag.hora+'</div>' +
           '<div class="price">'+money(ag.total)+'</div>' +
           '<button class="cancel-btn" data-id="'+ag.id+'" type="button">Cancelar</button>' +
@@ -948,14 +960,17 @@
         ' (' + ag.porteNome + '), marcado para ' + formatDate(ag.data) + ' às ' + ag.hora +
         ', foi cancelado pela Colleen Feliz.');
       if(motivo){ linhas.push('Motivo: ' + motivo); }
+      linhas.push('Protocolo: ' + ag.cancelCode);
     }else if(tipo === 'pronto'){
       linhas.push('Olá, ' + ag.tutorNome + '! O ' + ag.petNome + ' já está pronto e te esperando para retirada na Colleen Feliz. 🐾');
+      linhas.push('Protocolo: ' + ag.cancelCode);
     }else{
       linhas.push('Olá, ' + ag.tutorNome + '! Seu agendamento de ' + ag.petNome + ' foi atualizado pela Colleen Feliz:');
-      linhas.push('Nova data: ' + formatDate(ag.data) + ' às ' + ag.hora);
-      if(ag.busca){ linhas.push('Busca em casa: ' + ag.endereco + ' às ' + ag.horaBusca); }
+      if(ag.busca){ linhas.push('Horário de busca: ' + ag.horaBusca + ' — ' + ag.endereco); }
       else{ linhas.push('Sem busca em casa — a entrega continua sendo no salão.'); }
+      linhas.push('Horário de entrega: ' + formatDate(ag.data) + ' às ' + ag.hora);
       if(motivo){ linhas.push('Motivo da alteração: ' + motivo); }
+      linhas.push('Protocolo: ' + ag.cancelCode);
     }
     linhas.push('Qualquer dúvida, é só responder por aqui.');
     return linhas.join('\n');
@@ -975,13 +990,14 @@
   function buildWhatsAppMessage(ag, titulo){
     var linhas = [];
     linhas.push(titulo + ' — Colleen Feliz');
+    linhas.push('Código do agendamento: ' + ag.cancelCode);
     linhas.push('Pet: ' + ag.petNome + ' (' + ag.porteNome + ')');
     linhas.push('Tutor: ' + ag.tutorNome + ' — ' + ag.tutorTel);
     linhas.push('Serviços: ' + ag.servicosNomes.join(', '));
-    linhas.push('Data: ' + formatDate(ag.data) + ' às ' + ag.hora);
     if(ag.busca){
-      linhas.push('Busca em casa: ' + ag.endereco + ' às ' + ag.horaBusca);
+      linhas.push('Horário de busca: ' + ag.horaBusca + ' — ' + ag.endereco);
     }
+    linhas.push('Horário de entrega: ' + formatDate(ag.data) + ' às ' + ag.hora);
     if(ag.obs){ linhas.push('Observações: ' + ag.obs); }
     linhas.push('Total: ' + money(ag.total));
     return linhas.join('\n');
@@ -1135,11 +1151,12 @@
           '<div class="tutor">Protocolo: <strong>'+ag.cancelCode+'</strong></div>' +
           '<div class="appt-chips">'+chips+'</div>' +
           (ag.obs ? '<div class="tutor" style="margin-top:6px;">Obs: '+escapeHtml(ag.obs)+'</div>' : '') +
-          (ag.busca ? '<div class="tutor">Endereço: '+escapeHtml(ag.endereco)+' às '+ag.horaBusca+'</div>' : '') +
+          (ag.busca ? '<div class="tutor">Horário de busca: <strong>'+ag.horaBusca+'</strong> &middot; '+escapeHtml(ag.endereco)+'</div>' : '') +
           (ag.pronto && ag.prontoEm ? '<div class="tutor">Pronto desde: '+new Date(ag.prontoEm).toLocaleString('pt-BR')+'</div>' : '') +
           (ag.status === 'cancelado' && ag.canceladoEm ? '<div class="tutor">Cancelado em: '+new Date(ag.canceladoEm).toLocaleString('pt-BR')+'</div>' : '') +
         '</div>' +
         '<div class="appt-meta">' +
+          '<div class="tutor" style="text-align:right;">Entrega</div>' +
           '<div class="when">'+formatDate(ag.data)+' às '+ag.hora+'</div>' +
           '<div class="price">'+money(ag.total)+'</div>' +
         '</div>' +
